@@ -1,27 +1,37 @@
+import concurrent.futures
 import socket
 import struct
-import os
 
 
-hosts = None
-with open('/etc/myhosts', 'r') as f:
-        hosts = dict(line.strip().split() for line in f if line.strip() and not line.startswith('#'))
 
+def parse_hosts_file(file_path):
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+    hosts = {}
+    for line in lines:
+        if line.startswith('#'):
+            continue
+        parts = line.split()
+        ip_address = parts[0]
+        hostnames = parts[1:]
+        for hostname in hostnames:
+            hosts[hostname] = ip_address
+    return hosts
+
+hosts = parse_hosts_file('/etc/myhosts')
 
 def respond(query_data):
-    # Read the custom hosts file
     global hosts
     # Check if the queried domain is in the hosts file
     ip_address = hosts.get(query_data['qname'].rstrip('.'), None)
 
     # Pack the header
     id = query_data['id']
-    flags = 0x8180  # Standard response, No error
+    flags = 0x8080  # Standard response, No error
     qdcount = query_data['qdcount']
     ancount = 1 if ip_address else 0  # Number of answers
-    nscount = query_data['nscount']
-    arcount = query_data['arcount']
-    header = struct.pack('!HHHHHH', id, flags, qdcount, ancount, nscount, arcount)
+    nscount = 0
+    arcount = 0
 
     # Pack the question
     question = query_data['question']
@@ -32,23 +42,17 @@ def respond(query_data):
         name = 0xC00C  # Pointer to the domain name in the question
         type = 1  # A record
         class_ = 1  # IN class
-        ttl = 3600  # Time to live
+        ttl = 0  # Time to live
         rdlength = 4  # Length of the RDATA field
         rdata = socket.inet_aton(ip_address)  # IP address
         answer = struct.pack('!HHHLH', name, type, class_, ttl, rdlength) + rdata
-
+    else:
+        flags = 0x8083
+    
+    header = struct.pack('!HHHHHH', id, flags, qdcount, ancount, nscount, arcount)
     return header + question + answer
 
-def pars_dns_query(data):
-    """_summary_
-
-    Args:
-        data (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-
+def parse_dns_query(data):
     dns_header = data[:12]
     dns_question = data[12:]
 
@@ -65,7 +69,7 @@ def pars_dns_query(data):
         qname += dns_question[i+1:i+1+length].decode() + '.'
         i += length + 1
     qtype, qclass = struct.unpack('!HH', dns_question[i+1:i+5])
-
+    dns_question = dns_question[: i+5]
     return {
         'id': id,
         'flags': flags,
@@ -76,30 +80,27 @@ def pars_dns_query(data):
         'qname': qname,
         'qtype': qtype,
         'qclass': qclass,
-        'question': dns_question  # Add the question field
+        'question': dns_question
     }
     
-def dns_resolver(port):
-    """_summary_
-
-    Args:
-        port (_type_): _description_
-    """
+def handle_query(data, address):
+        dns_query = parse_dns_query(data)
+        response = respond(dns_query)
+        return response, address
     
-    
-    # Create a UDP socket
+def dns_resolver(port, pool_size=5):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-    # Bind the socket to the port
+    # sock.setblocking(False)
     server_address = ('127.0.0.1', port)
     sock.bind(server_address)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as executor:
+        while True:
+            print('\nwaiting to receive message')
+            data, address = sock.recvfrom(4096)
+            future = executor.submit(handle_query, data, address)
+            response, address = future.result()
+            sock.sendto(response, address)
 
-    while True:
-        print('\nwaiting to receive message')
-        data, address = sock.recvfrom(4096)
-        dns_query = pars_dns_query(data)
-        response = respond(dns_query)
-        sock.sendto(response, address)
 
-# Call the function with a specific port
-dns_resolver(5353)
+if __name__ == "__main__":
+    dns_resolver(5353)
