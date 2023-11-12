@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Input file with domain names
+input_file="hosts.txt"
+
+# Output file for results
+output_file="results.txt"
+
+# Ensure the output file is empty before writing results
+> "$output_file"
+
+# Function to perform a DNS lookup and save the result
+perform_dns_lookup() {
+  output_file="results.txt"
+  domain="$1"
+  result=$(dig @"localhost" -p 5353 +short "$domain")
+  echo "$domain: $result" >> "$output_file"
+}
+
+# Export the function so it can be used with parallel
+export -f perform_dns_lookup
+
+# Read domain names from input file and perform DNS lookup in parallel
+cat "$input_file" | parallel -j 4 perform_dns_lookup

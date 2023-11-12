@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Check if the number of entries is specified as an argument
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <number_of_entries>"
+  exit 1
+fi
+
+# Number of entries to generate
+num_entries="$1"
+
+# Generate the huge myhosts file
+generate_huge_myhosts() {
+  for i in $(seq 1 $num_entries); do
+    echo "192.168.1.$i    example$i.com"
+  done
+}
+
+# Generate the hosts.txt file for testing
+generate_hosts_txt() {
+  for i in $(seq 1 $num_entries); do
+    echo "example$i.com"
+    echo "badreq$i.com"
+  done
+}
+
+# Create the files
+generate_huge_myhosts > /etc/myhosts
+generate_hosts_txt > hosts.txt
+
+echo "Generated $num_entries entries in /etc/myhosts and hosts.txt"
