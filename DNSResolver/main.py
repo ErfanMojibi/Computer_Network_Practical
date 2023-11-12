@@ -83,23 +83,26 @@ def parse_dns_query(data):
         'question': dns_question
     }
     
-def handle_query(data, address):
+def handle_query(data, address, sock):
         dns_query = parse_dns_query(data)
         response = respond(dns_query)
-        return response, address
+        return response, address, sock
+    
+    
+def handle_query_result(future):
+    response, address, sock = future.result()
+    sock.sendto(response, address)
     
 def dns_resolver(port, pool_size=5):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # sock.setblocking(False)
     server_address = ('127.0.0.1', port)
     sock.bind(server_address)
     with concurrent.futures.ThreadPoolExecutor(max_workers=pool_size) as executor:
         while True:
             print('\nwaiting to receive message')
             data, address = sock.recvfrom(4096)
-            future = executor.submit(handle_query, data, address)
-            response, address = future.result()
-            sock.sendto(response, address)
+            future = executor.submit(handle_query, data, address, sock)
+            future.add_done_callback(handle_query_result)
 
 
 if __name__ == "__main__":
