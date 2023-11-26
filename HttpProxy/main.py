@@ -10,7 +10,6 @@ MAX_THREADS = 10
 def handle_client(client_socket):
     request = client_socket.recv(4096).decode('utf-8')
     first_line = request.split('\n')[0]
-    print(request)
     if 'CONNECT' in first_line:
         handle_https(client_socket, first_line.split(' ')[1])
     else:
@@ -38,25 +37,17 @@ def handle_https(client_socket, url):
 
     client_socket.send("HTTP/1.1 200 Connection Established\r\n\r\n".encode())
 
-    client_context = ssl.create_default_context()
-    server_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-
-    client_socket = client_context.wrap_socket(client_socket, server_side=True)
-    remote_socket = server_context.wrap_socket(remote_socket, server_hostname=remote_host)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         executor.submit(forward_data, client_socket, remote_socket)
         executor.submit(forward_data, remote_socket, client_socket)
 
 def forward_data(source, destination):
-    try:
-        while True:
-            data = source.recv(4096)
-            if not data:
-                break
-            destination.send(data)
-    except ssl.SSLError:
-        pass
+    while True:
+        data = source.recv(4096)
+        if not data:
+            break
+        destination.send(data)
 
 def main():
     proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
