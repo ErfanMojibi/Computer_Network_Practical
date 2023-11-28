@@ -46,6 +46,7 @@ def forward_data(source, destination):
     while True:
         data = source.recv(4096)
         if not data:
+            source.close()
             break
         destination.send(data)
 
