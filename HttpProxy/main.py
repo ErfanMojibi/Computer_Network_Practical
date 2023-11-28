@@ -1,5 +1,4 @@
 import socket
-import ssl
 from concurrent.futures import ThreadPoolExecutor
 
 # Proxy settings
