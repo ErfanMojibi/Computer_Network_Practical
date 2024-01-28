@@ -15,8 +15,9 @@ def main():
             print(f"REGISTERED {address[0]}: {client_id}")
         elif message.startswith("CONNECT"):
             _, src_id, dest_id = message.split()
-            dest_addr = clients[dest_id]
-            src_addr = clients[src_id]
+            dest_addr = clients.pop(dest_addr)
+            src_addr = clients.pop(src_addr)
+            
             sock.sendto(f"CONNECT {dest_id} {dest_addr[0]} {dest_addr[1]}".encode(), src_addr)
             sock.sendto(f"CONNECT {src_id} {src_addr[0]} {src_addr[1]}".encode(), dest_addr)
             print(f"CONNECTED {src_id} {dest_id}")
