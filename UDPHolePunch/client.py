@@ -2,6 +2,7 @@ import socket
 import threading
 import sys
 import random
+import time
 SERVER_ADDRESS = ('localhost', 9999)
 connection_ip = None
 connection_port = None
@@ -18,8 +19,9 @@ def receive_messages(sock):
                 _, dest_id, connection_ip, connection_port = message.split()
                 connection_port = int(connection_port)
                 is_connected = True
+                print(f"+ CONNECTED to {connection_ip}:{connection_port}")
             else:
-                print(message)
+                print(f"- {message}")
     except:
         return
 def main():
@@ -33,6 +35,7 @@ def main():
         client_id = sys.argv[1]
         
     reg_message = f"REGISTER {client_id}"
+    print(f"+ Registering with id: {client_id}")
     sock.sendto(reg_message.encode(), SERVER_ADDRESS)
     receive_thread = threading.Thread(target=receive_messages, args=(sock,))
     receive_thread.start()
@@ -43,6 +46,7 @@ def main():
                 sock.close()
             elif not is_connected and command.startswith("CONNECT"):
                 sock.sendto(command.encode(), SERVER_ADDRESS)
+                time.sleep(2)
             else:
                 if is_connected:
                     send_message(sock, command)
@@ -50,7 +54,7 @@ def main():
                     print("Please connect first: CONNECT [your_id] [dest_id]")
     except:
         sock.close()
-    
+
 
 if __name__ == "__main__":
     main()
