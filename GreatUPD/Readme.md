@@ -1,5 +1,4 @@
 # Network Practical 4 - GreatUDP
-## Erfan Mojibi - 99105707
 
 ### How code works
 In order to make udp reliable, I added seq number to udp packets in data segment before the main data.

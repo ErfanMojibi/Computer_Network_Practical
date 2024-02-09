@@ -1,4 +1,3 @@
-# Erfan Mojibi - 99105707
 # UDP Hole Punch
 
 
